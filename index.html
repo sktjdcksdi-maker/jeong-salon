@@ -78,8 +78,14 @@ details.rec[open]{border-color:var(--acc)}
 .box p{font-size:22px;font-weight:800;margin:0 0 16px}.box .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .status{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:16px 26px;border-radius:40px;font-size:21px;font-weight:800;display:none;z-index:10;text-align:center;max-width:92vw}
 .status.on{display:block}
+#login{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
+#login .card{width:min(440px,100%)}
+#login h2{font-size:30px;margin:0 0 6px;color:var(--acc)}
+#login .err{color:var(--red);font-weight:700;min-height:1.6em;margin:10px 0 0}
+.logout{width:auto!important;min-height:44px!important;font-size:16px!important;font-weight:500;color:var(--soft);background:none;border:0;margin-top:10px}
 [hidden]{display:none!important}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <h1>✂ 정미용실 기록장</h1>
@@ -118,10 +124,19 @@ details.rec[open]{border-color:var(--acc)}
     <div id="list"></div>
     <div class="foot"><button id="bkSave">💾 백업 저장</button><button id="bkLoad">📂 백업 불러오기</button></div>
     <input type="file" id="bkFile" accept=".json" hidden>
+    <button class="logout" id="logout" hidden>로그아웃</button>
     <p class="tip" id="bkTip">기록은 이 기기에 저장돼요. 하루 한 번 <b>백업 저장</b>을 눌러 두세요.</p>
   </section>
 </div>
 
+<div id="login" hidden><div class="card">
+  <h2>✂ 정미용실 기록장</h2>
+  <p class="tip" style="margin-bottom:14px">처음 한 번만 로그인하면 계속 유지돼요.</p>
+  <label for="lgEmail">이메일</label><input id="lgEmail" type="email" autocomplete="username" placeholder="이메일">
+  <label for="lgPw">비밀번호</label><input id="lgPw" type="password" autocomplete="current-password" placeholder="비밀번호">
+  <button class="save" id="lgBtn">로그인</button>
+  <p class="err" id="lgErr"></p>
+</div></div>
 <div class="over" id="zoom"><img id="zoomImg" alt="크게 보기"></div>
 <div class="over" id="ask"><div class="box"><p>이 기록을 지울까요?</p><div class="two"><button id="askNo">아니요</button><button id="askYes" style="background:var(--red);border-color:var(--red);color:#fff">지울게요</button></div></div></div>
 <div class="status" id="status"></div>
@@ -140,10 +155,13 @@ function toast(t, ms = 2500) { const s = $('status'); s.textContent = t; s.class
 const req = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
 const os = (n, m = 'readonly') => db.transaction(n, m).objectStore(n);
 let CLOUD = false, cCol = null, cAssets = null;
-async function savePhoto(blob) { if (CLOUD) { if (!cAssets) throw new Error('no assets'); return (await cAssets.upload(blob)).id; } const id = 'p' + uid(); await req(os('photos', 'readwrite').put(blob, id)); return id; }
-async function putRec(r) { if (CLOUD) await cCol.doc(r.id).set(r); else await req(os('recs', 'readwrite').put(r)); }
-async function delRec(id) { if (CLOUD) await cCol.doc(id).delete(); else await req(os('recs', 'readwrite').delete(id)); }
-async function url(id) { if (CLOUD) return '/_blob/' + encodeURIComponent(id); if (!urls[id]) { const b = await req(os('photos').get(id)); if (b) urls[id] = URL.createObjectURL(b); } return urls[id] || ''; }
+const SB_URL = 'https://obibxbrsiqykoxuamfpz.supabase.co', SB_KEY = 'sb_publishable_r1TVQx5FlYO9h-HrG3alMw_iMRU-z_O';
+let SB = null; const signed = {};
+async function sbLoad() { const { data, error } = await SB.from('recs').select('id,at,name,perm,cut,oops,photos'); if (error) { toast('불러오지 못했어요. 인터넷을 확인해 주세요.', 4000); return; } recs = (data || []).map(r => ({ ...r, photos: r.photos || [] })); render(); }
+async function savePhoto(blob) { if (SB) { const p = 'p' + uid() + '.jpg'; const { error } = await SB.storage.from('photos').upload(p, blob, { contentType: 'image/jpeg' }); if (error) throw error; return p; } if (CLOUD) { if (!cAssets) throw new Error('no assets'); return (await cAssets.upload(blob)).id; } const id = 'p' + uid(); await req(os('photos', 'readwrite').put(blob, id)); return id; }
+async function putRec(r) { if (SB) { const { error } = await SB.from('recs').upsert(r); if (error) throw error; return; } if (CLOUD) await cCol.doc(r.id).set(r); else await req(os('recs', 'readwrite').put(r)); }
+async function delRec(id) { if (SB) { const { error } = await SB.from('recs').delete().eq('id', id); if (error) throw error; return; } if (CLOUD) await cCol.doc(id).delete(); else await req(os('recs', 'readwrite').delete(id)); }
+async function url(id) { if (SB) { if (!signed[id]) { const { data } = await SB.storage.from('photos').createSignedUrl(id, 60 * 60 * 24); signed[id] = data?.signedUrl || ''; } return signed[id]; } if (CLOUD) return '/_blob/' + encodeURIComponent(id); if (!urls[id]) { const b = await req(os('photos').get(id)); if (b) urls[id] = URL.createObjectURL(b); } return urls[id] || ''; }
 function fill(root) { root.querySelectorAll('img[data-p]:not([src])').forEach(async i => { const u = await url(i.dataset.p); if (u) i.src = u; }); }
 
 let calY, calM, selDay;
@@ -242,6 +260,9 @@ $('bkLoad').onclick = () => $('bkFile').click();
 $('bkFile').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try { const o = JSON.parse(await f.text()); if (o.app !== 'jeong-notebook') throw 0; toast('불러오는 중…', 60000);
+    if (SB) { const map = {}; for (const k in o.photos || {}) map[k] = await savePhoto(fromData(o.photos[k]));
+      for (const r of o.recs || []) await putRec({ id: r.id, at: r.at, name: r.name, perm: r.perm || '', cut: r.cut || '', oops: r.oops || '', photos: (r.photos || []).map(p => map[p] || p) });
+      await sbLoad(); toast(`기록 ${(o.recs || []).length}개를 옮겼어요 ✓`, 4000); return; }
     for (const k in o.photos || {}) { const bl = fromData(o.photos[k]); await req(os('photos', 'readwrite').put(bl, k)); }
     for (const r of o.recs || []) await req(os('recs', 'readwrite').put(r));
     recs = await req(os('recs').getAll()); render(); toast(`기록 ${(o.recs || []).length}개를 불러왔어요 ✓`, 4000);
@@ -262,8 +283,28 @@ async function startCloud() {
     () => { clearTimeout(t); $('list').innerHTML = '<div class="empty">불러오지 못했어요. 페이지를 다시 열어 주세요.</div>'; });
   return true;
 }
+async function startSupa() {
+  if (!window.supabase || !window.supabase.createClient) return false;
+  SB = window.supabase.createClient(SB_URL, SB_KEY);
+  $('bkSave').hidden = true; $('bkLoad').textContent = '📂 예전 백업 옮겨오기'; $('logout').hidden = false;
+  $('bkTip').textContent = '인터넷에 자동으로 저장돼요. 휴대폰과 컴퓨터에서 같은 기록이 바로 보여요.';
+  let live = null;
+  const enter = async () => { $('login').hidden = true; $('list').innerHTML = '<div class="empty">불러오는 중이에요…</div>'; await sbLoad();
+    if (!live) live = SB.channel('recs-live').on('postgres_changes', { event: '*', schema: 'public', table: 'recs' }, () => sbLoad()).subscribe(); };
+  const { data } = await SB.auth.getSession();
+  if (data && data.session) await enter(); else $('login').hidden = false;
+  $('lgBtn').onclick = async () => { const email = $('lgEmail').value.trim(), password = $('lgPw').value;
+    if (!email || !password) { $('lgErr').textContent = '이메일과 비밀번호를 써 주세요.'; return; }
+    $('lgBtn').textContent = '로그인 중…'; const { error } = await SB.auth.signInWithPassword({ email, password }); $('lgBtn').textContent = '로그인';
+    if (error) { $('lgErr').textContent = '이메일이나 비밀번호가 틀렸어요.'; return; } $('lgErr').textContent = ''; $('lgPw').value = ''; await enter(); };
+  $('lgPw').onkeydown = e => { if (e.key === 'Enter') $('lgBtn').click(); };
+  $('logout').onclick = async () => { await SB.auth.signOut(); recs = []; render(); $('login').hidden = false; };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && $('login').hidden) sbLoad(); });
+  return true;
+}
 (async () => {
   try {
+    if (await startSupa()) return;
     if (await startCloud()) return;
     db = await new Promise((ok, no) => { const r = indexedDB.open('jeong-notebook', 1);
       r.onupgradeneeded = () => { r.result.createObjectStore('recs', { keyPath: 'id' }); r.result.createObjectStore('photos'); };
