@@ -78,6 +78,12 @@ details.rec[open]{border-color:var(--acc)}
 .box p{font-size:22px;font-weight:800;margin:0 0 16px}.box .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .status{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:16px 26px;border-radius:40px;font-size:21px;font-weight:800;display:none;z-index:10;text-align:center;max-width:92vw}
 .status.on{display:block}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--acc);color:var(--accInk);padding:0 14px 0 0;flex-wrap:wrap}
+.topbar h1{background:none;padding:16px 18px}
+.who{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700}
+.who .dot{width:12px;height:12px;border-radius:50%;background:#7CFC9A;box-shadow:0 0 0 3px #ffffff55}
+.who button{width:auto;min-height:48px;font-size:18px;padding:0 16px;background:#fff;color:var(--acc);border:0;border-radius:12px}
+@media(max-width:480px){.topbar h1{font-size:23px;padding:14px}.who span:not(.dot){display:none}.who button{min-height:44px;font-size:16px;padding:0 12px}}
 #login{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
 #login .card{width:min(440px,100%)}
 #login h2{font-size:30px;margin:0 0 6px;color:var(--acc)}
@@ -88,7 +94,8 @@ details.rec[open]{border-color:var(--acc)}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<h1>✂ 정미용실 기록장</h1>
+<header class="topbar"><h1>✂ 정미용실 기록장</h1>
+  <div class="who" id="who" hidden><span class="dot"></span><span>로그인됨</span><button id="logout">로그아웃</button></div></header>
 <div class="page">
   <section>
     <p id="editNote" class="editNote" hidden></p>
@@ -124,17 +131,16 @@ details.rec[open]{border-color:var(--acc)}
     <div id="list"></div>
     <div class="foot"><button id="bkSave">💾 백업 저장</button><button id="bkLoad">📂 백업 불러오기</button></div>
     <input type="file" id="bkFile" accept=".json" hidden>
-    <button class="logout" id="logout" hidden>로그아웃</button>
-    <p class="tip" id="bkTip">기록은 이 기기에 저장돼요. 하루 한 번 <b>백업 저장</b>을 눌러 두세요.</p>
+        <p class="tip" id="bkTip">기록은 이 기기에 저장돼요. 하루 한 번 <b>백업 저장</b>을 눌러 두세요.</p>
   </section>
 </div>
 
 <div id="login" hidden><div class="card">
   <h2>✂ 정미용실 기록장</h2>
-  <p class="tip" style="margin-bottom:14px">처음 한 번만 로그인하면 계속 유지돼요.</p>
-  <label for="lgEmail">이메일</label><input id="lgEmail" type="email" autocomplete="username" placeholder="이메일">
-  <label for="lgPw">비밀번호</label><input id="lgPw" type="password" autocomplete="current-password" placeholder="비밀번호">
-  <button class="save" id="lgBtn">로그인</button>
+  <p class="tip" style="margin-bottom:14px">이 기기에서 <b>처음 한 번만</b> 넣으면 돼요.</p>
+  <input id="lgEmail" type="email" autocomplete="username" value="sktjdcksdi@gmail.com" hidden>
+  <label for="lgPw">비밀번호</label><input id="lgPw" type="password" autocomplete="current-password" placeholder="비밀번호" style="font-size:26px;padding:18px">
+  <button class="save" id="lgBtn">들어가기</button>
   <p class="err" id="lgErr"></p>
 </div></div>
 <div class="over" id="zoom"><img id="zoomImg" alt="크게 보기"></div>
@@ -249,9 +255,16 @@ $('askYes').onclick = async () => { $('ask').classList.remove('on'); try { await
 const toData = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
 const fromData = d => { const [h, b64] = d.split(','); const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: h.slice(5).split(';')[0] }); };
 $('bkSave').onclick = async () => {
-  toast('백업 파일 만드는 중…', 60000);
-  const keys = await req(os('photos').getAllKeys()), photos = {};
-  for (const k of keys) { const bl = await req(os('photos').get(k)); photos[k] = await toData(bl); }
+  toast('백업 파일 만드는 중…', 600000);
+  let photos = {};
+  if (SB) {
+    const all = [...new Set(recs.flatMap(r => r.photos || []))]; let n = 0;
+    for (const p of all) { n++; toast(`사진 담는 중… ${n}/${all.length}`, 600000);
+      const { data, error } = await SB.storage.from('photos').download(p); if (!error && data) photos[p] = await toData(data); }
+  } else {
+    const keys = await req(os('photos').getAllKeys());
+    for (const k of keys) { const bl = await req(os('photos').get(k)); photos[k] = await toData(bl); }
+  }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: 'jeong-notebook', recs, photos })], { type: 'application/json' }));
   const d = now().slice(0, 10); a.download = `정미용실_기록장_백업_${d}.json`; document.body.appendChild(a); a.click(); a.remove();
   toast('백업 파일을 저장했어요 ✓ (다운로드 폴더)', 4000);
@@ -262,7 +275,7 @@ $('bkFile').onchange = async e => {
   try { const o = JSON.parse(await f.text()); if (o.app !== 'jeong-notebook') throw 0; toast('불러오는 중…', 60000);
     if (SB) { const map = {}; for (const k in o.photos || {}) map[k] = await savePhoto(fromData(o.photos[k]));
       for (const r of o.recs || []) await putRec({ id: r.id, at: r.at, name: r.name, perm: r.perm || '', cut: r.cut || '', oops: r.oops || '', photos: (r.photos || []).map(p => map[p] || p) });
-      await sbLoad(); toast(`기록 ${(o.recs || []).length}개를 옮겼어요 ✓`, 4000); return; }
+      await sbLoad(); toast(`기록 ${(o.recs || []).length}개를 되살렸어요 ✓`, 4000); return; }
     for (const k in o.photos || {}) { const bl = fromData(o.photos[k]); await req(os('photos', 'readwrite').put(bl, k)); }
     for (const r of o.recs || []) await req(os('recs', 'readwrite').put(r));
     recs = await req(os('recs').getAll()); render(); toast(`기록 ${(o.recs || []).length}개를 불러왔어요 ✓`, 4000);
@@ -286,19 +299,19 @@ async function startCloud() {
 async function startSupa() {
   if (!window.supabase || !window.supabase.createClient) return false;
   SB = window.supabase.createClient(SB_URL, SB_KEY);
-  $('bkSave').hidden = true; $('bkLoad').textContent = '📂 예전 백업 옮겨오기'; $('logout').hidden = false;
-  $('bkTip').textContent = '인터넷에 자동으로 저장돼요. 휴대폰과 컴퓨터에서 같은 기록이 바로 보여요.';
+  $('bkSave').textContent = '💾 백업 저장'; $('bkLoad').textContent = '📂 백업 되살리기';
+  $('bkTip').textContent = '인터넷에 자동 저장돼요. 혹시 몰라 한 달에 한 번 백업 저장을 눌러 PC나 카톡에 보관해 두세요.';
   let live = null;
-  const enter = async () => { $('login').hidden = true; $('list').innerHTML = '<div class="empty">불러오는 중이에요…</div>'; await sbLoad();
+  const enter = async () => { $('login').hidden = true; $('who').hidden = false; $('list').innerHTML = '<div class="empty">불러오는 중이에요…</div>'; await sbLoad();
     if (!live) live = SB.channel('recs-live').on('postgres_changes', { event: '*', schema: 'public', table: 'recs' }, () => sbLoad()).subscribe(); };
   const { data } = await SB.auth.getSession();
   if (data && data.session) await enter(); else $('login').hidden = false;
   $('lgBtn').onclick = async () => { const email = $('lgEmail').value.trim(), password = $('lgPw').value;
-    if (!email || !password) { $('lgErr').textContent = '이메일과 비밀번호를 써 주세요.'; return; }
-    $('lgBtn').textContent = '로그인 중…'; const { error } = await SB.auth.signInWithPassword({ email, password }); $('lgBtn').textContent = '로그인';
-    if (error) { $('lgErr').textContent = '이메일이나 비밀번호가 틀렸어요.'; return; } $('lgErr').textContent = ''; $('lgPw').value = ''; await enter(); };
+    if (!email || !password) { $('lgErr').textContent = '비밀번호를 써 주세요.'; return; }
+    $('lgBtn').textContent = '들어가는 중…'; const { error } = await SB.auth.signInWithPassword({ email, password }); $('lgBtn').textContent = '들어가기';
+    if (error) { $('lgErr').textContent = '비밀번호가 틀렸어요.'; return; } $('lgErr').textContent = ''; $('lgPw').value = ''; await enter(); };
   $('lgPw').onkeydown = e => { if (e.key === 'Enter') $('lgBtn').click(); };
-  $('logout').onclick = async () => { await SB.auth.signOut(); recs = []; render(); $('login').hidden = false; };
+  $('logout').onclick = async () => { if (!confirm('로그아웃하면 다음에 비밀번호를 다시 넣어야 해요.\n로그아웃할까요?')) return; await SB.auth.signOut(); recs = []; render(); $('who').hidden = true; $('login').hidden = false; toast('로그아웃했어요'); };
   document.addEventListener('visibilitychange', () => { if (!document.hidden && $('login').hidden) sbLoad(); });
   return true;
 }
