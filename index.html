@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>정미용실 기록장</title>
+<style>
+/* VOICE: 어르신 원장님용 — 한 장짜리 종이 기록장처럼, 넘기는 화면 없이
+   IDEA: 카운터 위에 펼쳐 둔 기록 노트 한 장
+   PICTURE: 칸 다섯 개와 큰 저장 버튼, 아래(넓으면 오른쪽)에 지난 기록
+   COLOUR and TYPE: 흰 바탕, 검정 글씨, 와인색 버튼, 실수는 빨강 / 시스템 한글 글꼴 20px
+   LAYOUT: 휴대폰은 위 적기·아래 기록, 컴퓨터는 왼쪽 적기·오른쪽 기록 */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#121011);--card:light-dark(#fff,#1d1a1c);--ink:light-dark(#111,#f5f0f1);--soft:light-dark(#444,#cfc6c8);
+--line:light-dark(#9d9396,#5a5053);--acc:light-dark(#c94a2e,#ff9a7d);--accInk:light-dark(#fff,#111);--red:light-dark(#c4001c,#ff6b7a);--warn:light-dark(#fff0f1,#3b1c20);--tint:light-dark(#f4f1f6,#2a2528)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:20px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;word-break:keep-all}
+h1{font-size:28px;margin:0;padding:16px 18px;background:var(--acc);color:var(--accInk)}
+.page{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;max-width:1300px;margin:0 auto;padding:18px}
+@media(min-width:1000px){.page{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+label{display:block;font-size:22px;font-weight:800;margin:18px 0 6px}
+label:first-child{margin-top:0}
+label.red{color:var(--red)}
+input,textarea{font:inherit;font-size:21px;color:var(--ink);background:var(--card);border:2px solid var(--line);border-radius:12px;padding:14px;width:100%}
+textarea{min-height:110px;resize:vertical}
+textarea.long{min-height:300px;line-height:1.7}
+textarea.red{border-color:var(--red);background:var(--warn)}
+input:focus,textarea:focus,button:focus-visible{outline:4px solid color-mix(in srgb,var(--acc) 40%,transparent);border-color:var(--acc)}
+button{font:inherit;font-weight:800;font-size:21px;min-height:62px;padding:0 20px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;width:100%}
+.save{background:var(--acc);border-color:var(--acc);color:var(--accInk);min-height:80px;font-size:26px;margin-top:22px}
+.photos{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.photos div{position:relative}.photos img{width:110px;height:110px;object-fit:cover;border-radius:10px;display:block}
+.photos button{position:absolute;top:4px;right:4px;width:38px;min-height:38px;padding:0;border-radius:50%;background:#000a;color:#fff;border:0;font-size:18px}
+h2{font-size:25px;margin:0 0 10px}
+.calTop{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;align-items:center;gap:8px;text-align:center;margin-bottom:10px}
+.calTop b{display:block;font-size:28px}.calTop span{color:var(--soft);font-size:17px}
+.calTop button{padding:0;min-height:58px}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.dow{text-align:center;font-weight:800;font-size:17px;color:var(--soft);padding:4px 0}.dow.sun,.cell.sun span{color:var(--red)}.dow.sat,.cell.sat span{color:#2f6fdb}
+.cell{min-height:64px;padding:4px 0;border-radius:12px;border:2px solid transparent;background:var(--card);display:grid;align-content:center;justify-items:center;gap:0;font-weight:700;font-size:20px}
+.cell em{font-style:normal;font-size:14px;font-weight:800;background:var(--acc);color:var(--accInk);border-radius:20px;padding:0 7px;line-height:1.5}
+.cell.has{background:var(--tint)}
+.cell.today{border-color:var(--line)}
+.cell.sel{border-color:var(--acc);border-width:3px}
+.todayBtn{min-height:48px;font-size:17px;font-weight:700;margin:10px 0 4px}
+.dayHead{font-size:23px;font-weight:800;margin:20px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
+details.day{border-bottom:2px solid var(--line)}
+details.day>summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 4px;font-size:23px;font-weight:800;cursor:pointer;list-style:none}
+details.day>summary::-webkit-details-marker,details.rec>summary::-webkit-details-marker{display:none}
+details.day>summary::before{content:"▸";color:var(--acc);margin-right:4px}
+details.day[open]>summary::before{content:"▾"}
+details.day>summary span:first-child{flex:1}
+.cnt{font-size:18px;font-weight:700;color:var(--soft)}
+details.rec{border:2px solid var(--line);border-radius:14px;margin:0 0 10px;background:var(--card)}
+details.rec>summary{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;min-height:60px}
+details.rec>summary .name{font-size:23px;font-weight:800;flex:1}
+details.rec>summary::after{content:"펼치기 ▾";font-size:16px;color:var(--soft);font-weight:500}
+details.rec[open]>summary::after{content:"접기 ▴"}
+details.rec[open]{border-color:var(--acc)}
+.warnDot{color:var(--red);font-weight:800;font-size:17px;background:var(--warn);border-radius:20px;padding:2px 10px}
+.body{padding:0 16px 12px;border-top:1px solid var(--line)}
+.item{margin-top:12px}.item b{display:block;color:var(--acc);font-size:18px}.item p{margin:2px 0 0;white-space:pre-wrap}
+.item.oops{background:var(--warn);border-radius:10px;padding:8px 12px}.item.oops b,.item.oops p{color:var(--red);font-weight:700}
+.body .photos img{width:120px;height:120px;cursor:zoom-in}
+.recActs{display:flex;gap:8px;align-items:center;margin-top:10px}
+.edit,.delBtn{width:auto;flex:1;min-height:56px;font-size:19px;padding:0 16px}
+.delBtn{color:var(--red);border-color:var(--red);background:var(--card)}
+.editNote{background:var(--tint);border:2px solid var(--acc);border-radius:12px;padding:10px 14px;font-weight:800;margin:0 0 14px}
+.del{width:auto;min-height:44px;font-size:17px;font-weight:500;color:var(--soft);background:none;border:0;padding:0 6px;margin-top:8px}
+.empty{padding:30px 14px;text-align:center;color:var(--soft);border:2px dashed var(--line);border-radius:16px}
+.tip{color:var(--soft);font-size:18px;margin:6px 0 0}
+.foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.foot button{min-height:54px;font-size:18px;font-weight:700}
+.over{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:14px;z-index:9}
+.over.on{display:flex}.over img{max-width:100%;max-height:90vh;border-radius:12px}
+.box{background:var(--bg);border-radius:18px;padding:22px;width:min(440px,100%)}
+.box p{font-size:22px;font-weight:800;margin:0 0 16px}.box .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.status{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:16px 26px;border-radius:40px;font-size:21px;font-weight:800;display:none;z-index:10;text-align:center;max-width:92vw}
+.status.on{display:block}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<h1>✂ 정미용실 기록장</h1>
+<div class="page">
+  <section>
+    <p id="editNote" class="editNote" hidden></p>
+    <label for="name">손님 이름</label>
+    <input id="name" placeholder="이름을 쓰면 그 손님 지난 기록이 나와요" autocomplete="off">
+
+    <label>손님 사진</label>
+    <button type="button" id="photoBtn">📷 사진 올리기</button>
+    <input type="file" id="photoFile" accept="image/*" multiple hidden>
+    <div class="photos" id="photos"></div>
+
+    <label for="perm">파마 · 롯드</label>
+    <textarea id="perm" class="long" placeholder="예: 디지털펌&#10;앞머리 7호&#10;정수리 6호&#10;옆머리 5호&#10;뒷머리 5호&#10;목덜미 4호&#10;1제 15분, 2제 10분"></textarea>
+
+    <label for="cut">커트 · 각도</label>
+    <textarea id="cut" placeholder="예: 단발. 45도로 들어서 자름. 정수리는 90도"></textarea>
+
+    <label for="oops" class="red">실수 · 다음에 조심할 것</label>
+    <textarea id="oops" class="red" placeholder="예: 정수리 롯드가 작아서 컬이 너무 셈. 다음엔 한 호수 크게"></textarea>
+
+    <button class="save" id="save">저장하기</button>
+    <button id="cancelEdit" hidden style="margin-top:10px">고치기 취소</button>
+    <p class="tip">🎤 휴대폰은 자판의 마이크 버튼을 누르고 말하면 글씨로 적혀요.</p>
+  </section>
+
+  <section>
+    <h2 id="listTitle">지난 기록</h2>
+    <div id="cal">
+      <div class="calTop"><button id="calPrev" aria-label="이전 달">◀</button><div><b id="calHead"></b><span id="calSum"></span></div><button id="calNext" aria-label="다음 달">▶</button></div>
+      <div class="grid" id="calGrid"></div>
+      <button id="calToday" class="todayBtn">오늘로 가기</button>
+    </div>
+    <div id="list"></div>
+    <div class="foot"><button id="bkSave">💾 백업 저장</button><button id="bkLoad">📂 백업 불러오기</button></div>
+    <input type="file" id="bkFile" accept=".json" hidden>
+    <p class="tip" id="bkTip">기록은 이 기기에 저장돼요. 하루 한 번 <b>백업 저장</b>을 눌러 두세요.</p>
+  </section>
+</div>
+
+<div class="over" id="zoom"><img id="zoomImg" alt="크게 보기"></div>
+<div class="over" id="ask"><div class="box"><p>이 기록을 지울까요?</p><div class="two"><button id="askNo">아니요</button><button id="askYes" style="background:var(--red);border-color:var(--red);color:#fff">지울게요</button></div></div></div>
+<div class="status" id="status"></div>
+
+<script>
+{
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const now = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16).replace('T', ' '); };
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const fmt = s => { const d = new Date(s.replace(' ', 'T')); return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let db, recs = [], shots = [], urls = {}, delId = null, editId = null;
+
+function toast(t, ms = 2500) { const s = $('status'); s.textContent = t; s.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => s.classList.remove('on'), ms); }
+const req = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+const os = (n, m = 'readonly') => db.transaction(n, m).objectStore(n);
+let CLOUD = false, cCol = null, cAssets = null;
+async function savePhoto(blob) { if (CLOUD) { if (!cAssets) throw new Error('no assets'); return (await cAssets.upload(blob)).id; } const id = 'p' + uid(); await req(os('photos', 'readwrite').put(blob, id)); return id; }
+async function putRec(r) { if (CLOUD) await cCol.doc(r.id).set(r); else await req(os('recs', 'readwrite').put(r)); }
+async function delRec(id) { if (CLOUD) await cCol.doc(id).delete(); else await req(os('recs', 'readwrite').delete(id)); }
+async function url(id) { if (CLOUD) return '/_blob/' + encodeURIComponent(id); if (!urls[id]) { const b = await req(os('photos').get(id)); if (b) urls[id] = URL.createObjectURL(b); } return urls[id] || ''; }
+function fill(root) { root.querySelectorAll('img[data-p]:not([src])').forEach(async i => { const u = await url(i.dataset.p); if (u) i.src = u; }); }
+
+let calY, calM, selDay;
+const pad = n => String(n).padStart(2, '0');
+const recHtml = (r, open) => `<details class="rec"${open ? ' open' : ''}><summary><span class="name">${esc(r.name)}</span>${r.oops ? '<span class="warnDot">⚠ 실수</span>' : ''}${r.photos?.length ? '<span class="cnt">📷</span>' : ''}</summary>
+  <div class="body">
+  ${r.photos?.length ? `<div class="photos">${r.photos.map(p => `<img data-p="${esc(p)}" alt="${esc(r.name)} 사진">`).join('')}</div>` : ''}
+  ${r.perm ? `<div class="item"><b>파마 · 롯드</b><p>${esc(r.perm)}</p></div>` : ''}
+  ${r.cut ? `<div class="item"><b>커트 · 각도</b><p>${esc(r.cut)}</p></div>` : ''}
+  ${r.oops ? `<div class="item oops"><b>⚠ 실수 · 조심할 것</b><p>${esc(r.oops)}</p></div>` : ''}
+  <div class="recActs"><button class="edit" data-edit="${r.id}">✏️ 고치기</button><button class="delBtn" data-del="${r.id}">🗑️ 지우기</button></div></div></details>`;
+function render() {
+  const q = $('name').value.trim(), t = now().slice(0, 10);
+  if (calY == null) { calY = +t.slice(0, 4); calM = +t.slice(5, 7); selDay = t; }
+  if (q) {
+    const list = recs.filter(r => r.name.includes(q)).sort((a, b) => b.at.localeCompare(a.at));
+    $('cal').hidden = true; $('listTitle').textContent = `"${q}" 손님 지난 기록 ${list.length}개`;
+    $('list').innerHTML = list.length ? list.map(r => `<div class="dayHead">${fmt(r.at)}</div>` + recHtml(r, true)).join('') : `<div class="empty">"${esc(q)}" 손님 기록이 아직 없어요.</div>`;
+    fill($('list')); return;
+  }
+  $('cal').hidden = false; $('listTitle').textContent = '지난 기록';
+  const ym = `${calY}-${pad(calM)}`, cnt = {};
+  recs.forEach(r => { if (r.at.startsWith(ym)) { const d = r.at.slice(0, 10); cnt[d] = (cnt[d] || 0) + 1; } });
+  const first = new Date(calY, calM - 1, 1).getDay(), last = new Date(calY, calM, 0).getDate();
+  const monthTotal = Object.values(cnt).reduce((a, b) => a + b, 0);
+  let cells = ['일', '월', '화', '수', '목', '금', '토'].map((d, i) => `<div class="dow${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${d}</div>`).join('');
+  for (let i = 0; i < first; i++) cells += '<div></div>';
+  for (let d = 1; d <= last; d++) { const k = `${ym}-${pad(d)}`, c = cnt[k] || 0, wd = (first + d - 1) % 7;
+    cells += `<button class="cell${c ? ' has' : ''}${k === selDay ? ' sel' : ''}${k === t ? ' today' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-day="${k}"><span>${d}</span>${c ? `<em>${c}명</em>` : ''}</button>`; }
+  $('calHead').textContent = `${calY}년 ${calM}월`; $('calSum').textContent = monthTotal ? `이번 달 손님 ${monthTotal}명` : '이 달은 기록이 없어요';
+  $('calGrid').innerHTML = cells;
+  const day = recs.filter(r => r.at.startsWith(selDay)).sort((a, b) => a.at.localeCompare(b.at));
+  $('list').innerHTML = `<div class="dayHead">${fmt(selDay + ' 12:00')}${selDay === t ? ' · 오늘' : ''} <span class="cnt">${day.length}명</span></div>`
+    + (day.length ? day.map(r => recHtml(r, false)).join('') : '<div class="empty">이 날은 기록이 없어요.<br>달력에서 숫자가 있는 날을 눌러 보세요.</div>');
+}
+$('calPrev').onclick = () => { calM--; if (calM < 1) { calM = 12; calY--; } render(); };
+$('calNext').onclick = () => { calM++; if (calM > 12) { calM = 1; calY++; } render(); };
+$('calToday').onclick = () => { const t = now().slice(0, 10); calY = +t.slice(0, 4); calM = +t.slice(5, 7); selDay = t; render(); };
+$('calGrid').onclick = e => { const b = e.target.closest('[data-day]'); if (b) { selDay = b.dataset.day; render(); } };
+$('list').addEventListener('toggle', e => { if (e.target.open) fill(e.target); }, true);
+function drawShots() { $('photos').innerHTML = shots.map((p, i) => `<div><img data-p="${p}" alt="사진 ${i + 1}"><button type="button" data-rm="${i}" aria-label="사진 빼기">✕</button></div>`).join(''); fill($('photos')); }
+
+async function shrink(file) {
+  const u = URL.createObjectURL(file);
+  try { const im = new Image(); im.src = u; await im.decode(); const k = Math.min(1, 1200 / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)); } finally { URL.revokeObjectURL(u); }
+}
+$('photoBtn').onclick = () => $('photoFile').click();
+$('photoFile').onchange = async e => {
+  const fs = [...e.target.files]; e.target.value = '';
+  for (const f of fs) { try { toast('사진 올리는 중…', 60000); const blob = await shrink(f), id = await savePhoto(blob); shots.push(id); drawShots(); } catch (err) { toast('사진이 안 올라갔어요. 다시 해 주세요.'); return; } }
+  toast('사진을 올렸어요 ✓');
+};
+$('photos').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { shots.splice(+b.dataset.rm, 1); drawShots(); } };
+$('name').oninput = render;
+
+function endEdit() { editId = null; $('save').textContent = '저장하기'; $('cancelEdit').hidden = true; $('editNote').hidden = true; }
+$('save').onclick = async () => {
+  const name = $('name').value.trim();
+  if (!name) { toast('손님 이름을 먼저 써 주세요'); $('name').focus(); return; }
+  const old = editId && recs.find(x => x.id === editId);
+  const r = { id: old ? old.id : uid(), at: old ? old.at : now(), name, perm: $('perm').value.trim(), cut: $('cut').value.trim(), oops: $('oops').value.trim(), photos: shots };
+  if (!r.perm && !r.cut && !r.oops && !shots.length) { toast('적은 내용이 없어요'); return; }
+  try { await putRec(r); recs = recs.filter(x => x.id !== r.id).concat(r); }
+  catch (e) { toast('저장이 안 됐어요. 다시 눌러 주세요.'); return; }
+  ['perm', 'cut', 'oops'].forEach(id => $(id).value = ''); shots = []; drawShots();
+  if (old) { selDay = r.at.slice(0, 10); $('name').value = ''; }
+  toast(old ? `${name} 님 기록을 고쳤어요 ✓` : `${name} 님 기록을 저장했어요 ✓`, 3500);
+  endEdit(); render();
+};
+$('cancelEdit').onclick = () => { ['name', 'perm', 'cut', 'oops'].forEach(id => $(id).value = ''); shots = []; drawShots(); endEdit(); render(); };
+$('list').onclick = e => {
+  const im = e.target.closest('img[data-p]'); if (im) { $('zoomImg').src = im.src; $('zoom').classList.add('on'); return; }
+  const ed = e.target.closest('[data-edit]'); if (ed) { const r = recs.find(x => x.id === ed.dataset.edit); editId = r.id;
+    $('name').value = r.name; $('perm').value = r.perm || ''; $('cut').value = r.cut || ''; $('oops').value = r.oops || ''; shots = [...(r.photos || [])]; drawShots();
+    $('save').textContent = '고친 내용 저장'; $('cancelEdit').hidden = false; $('editNote').hidden = false; $('editNote').textContent = `✏️ ${r.name} 님 ${fmt(r.at)} 기록을 고치는 중이에요`;
+    window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const d = e.target.closest('[data-del]'); if (d) { delId = d.dataset.del; $('ask').classList.add('on'); }
+};
+$('zoom').onclick = () => $('zoom').classList.remove('on');
+$('askNo').onclick = () => $('ask').classList.remove('on');
+$('askYes').onclick = async () => { $('ask').classList.remove('on'); try { await delRec(delId); } catch (e) { toast('지우지 못했어요. 다시 눌러 주세요.'); return; } recs = recs.filter(r => r.id !== delId); render(); toast('지웠어요'); };
+
+const toData = b => new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
+const fromData = d => { const [h, b64] = d.split(','); const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: h.slice(5).split(';')[0] }); };
+$('bkSave').onclick = async () => {
+  toast('백업 파일 만드는 중…', 60000);
+  const keys = await req(os('photos').getAllKeys()), photos = {};
+  for (const k of keys) { const bl = await req(os('photos').get(k)); photos[k] = await toData(bl); }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: 'jeong-notebook', recs, photos })], { type: 'application/json' }));
+  const d = now().slice(0, 10); a.download = `정미용실_기록장_백업_${d}.json`; document.body.appendChild(a); a.click(); a.remove();
+  toast('백업 파일을 저장했어요 ✓ (다운로드 폴더)', 4000);
+};
+$('bkLoad').onclick = () => $('bkFile').click();
+$('bkFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { const o = JSON.parse(await f.text()); if (o.app !== 'jeong-notebook') throw 0; toast('불러오는 중…', 60000);
+    for (const k in o.photos || {}) { const bl = fromData(o.photos[k]); await req(os('photos', 'readwrite').put(bl, k)); }
+    for (const r of o.recs || []) await req(os('recs', 'readwrite').put(r));
+    recs = await req(os('recs').getAll()); render(); toast(`기록 ${(o.recs || []).length}개를 불러왔어요 ✓`, 4000);
+  } catch (err) { toast('기록장 백업 파일이 아니에요.'); }
+};
+
+async function startCloud() {
+  if (typeof claude === 'undefined' || !claude.use) return false;
+  CLOUD = true; $('list').innerHTML = '<div class="empty">불러오는 중이에요…</div>';
+  $('bkSave').parentElement.hidden = true; $('bkTip').textContent = '인터넷에 자동으로 저장돼요. 휴대폰과 컴퓨터에서 같은 기록이 보여요.';
+  const user = await claude.use('user'); let ed = null; try { ed = user ? await user.canEdit() : null; } catch (e) {}
+  const d = await claude.use('db');
+  if (!d) { $('list').innerHTML = '<div class="empty">Claude에 로그인한 상태로 열어 주세요.</div>'; return true; }
+  if (ed === false) { $('list').innerHTML = '<div class="empty">원장님(관리자)만 볼 수 있어요.<br>공유에서 <b>편집자</b>로 추가받아야 해요.</div>'; return true; }
+  cAssets = await claude.use('assets'); cCol = d.collection('recs');
+  const t = setTimeout(() => toast('아직 못 불러왔어요. 인터넷 연결을 확인해 주세요.', 5000), 10000);
+  cCol.onSnapshot(snap => { if (!snap.metadata.fromCache) clearTimeout(t); recs = snap.docs.map(x => ({ id: x.id, ...x.data() })); if (!editId) render(); else render(); },
+    () => { clearTimeout(t); $('list').innerHTML = '<div class="empty">불러오지 못했어요. 페이지를 다시 열어 주세요.</div>'; });
+  return true;
+}
+(async () => {
+  try {
+    if (await startCloud()) return;
+    db = await new Promise((ok, no) => { const r = indexedDB.open('jeong-notebook', 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('recs', { keyPath: 'id' }); r.result.createObjectStore('photos'); };
+      r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+    recs = await req(os('recs').getAll()); render();
+  } catch (e) { $('list').innerHTML = '<div class="empty">저장 공간을 열지 못했어요. 크롬이나 엣지로 열어 주세요.</div>'; }
+})();
+}
+</script>
+</body>
+</html>
