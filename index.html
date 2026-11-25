@@ -89,6 +89,13 @@ details.rec[open]{border-color:var(--acc)}
 #login h2{font-size:30px;margin:0 0 6px;color:var(--acc)}
 #login .err{color:var(--red);font-weight:700;min-height:1.6em;margin:10px 0 0}
 .logout{width:auto!important;min-height:44px!important;font-size:16px!important;font-weight:500;color:var(--soft);background:none;border:0;margin-top:10px}
+.hints{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.hints:empty{display:none}
+.hints .hTitle{width:100%;font-size:17px;color:var(--soft);font-weight:700}
+.hints button{width:auto;min-height:50px;font-size:20px;padding:0 16px;border-radius:26px;background:var(--tint);border-color:var(--line)}
+.hints button.same{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.hints button small{font-size:16px;font-weight:600;opacity:.8;margin-left:4px}
+.hints .newGuest{font-size:18px;font-weight:800;color:var(--acc);background:var(--tint);border-radius:12px;padding:8px 14px}
 [hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -101,6 +108,7 @@ details.rec[open]{border-color:var(--acc)}
     <p id="editNote" class="editNote" hidden></p>
     <label for="name">손님 이름</label>
     <input id="name" placeholder="이름을 쓰면 그 손님 지난 기록이 나와요" autocomplete="off">
+    <div class="hints" id="nameHints"></div>
 
     <label>손님 사진</label>
     <button type="button" id="photoBtn">📷 사진 올리기</button>
@@ -179,7 +187,18 @@ const recHtml = (r, open) => `<details class="rec"${open ? ' open' : ''}><summar
   ${r.cut ? `<div class="item"><b>커트 · 각도</b><p>${esc(r.cut)}</p></div>` : ''}
   ${r.oops ? `<div class="item oops"><b>⚠ 실수 · 조심할 것</b><p>${esc(r.oops)}</p></div>` : ''}
   <div class="recActs"><button class="edit" data-edit="${r.id}">✏️ 고치기</button><button class="delBtn" data-del="${r.id}">🗑️ 지우기</button></div></div></details>`;
+function drawHints() {
+  const q = $('name').value.trim(), box = $('nameHints');
+  if (!q || editId) { box.innerHTML = ''; return; }
+  const cnt = {}; recs.forEach(r => { if (r.name.includes(q)) cnt[r.name] = (cnt[r.name] || 0) + 1; });
+  const names = Object.keys(cnt).sort((a, b) => (b === q) - (a === q) || cnt[b] - cnt[a]).slice(0, 8);
+  if (!names.length) { box.innerHTML = `<div class="newGuest">🆕 "${esc(q)}" 님은 처음 오신 손님이에요</div>`; return; }
+  box.innerHTML = `<div class="hTitle">👇 이미 적어 둔 손님이에요. 누르면 이름이 들어가요</div>`
+    + names.map(n => `<button type="button" class="${n === q ? 'same' : ''}" data-pick="${esc(n)}">${n === q ? '✓ ' : ''}${esc(n)}<small>${cnt[n]}번 방문</small></button>`).join('');
+}
+$('nameHints').onclick = e => { const b = e.target.closest('[data-pick]'); if (b) { $('name').value = b.dataset.pick; render(); } };
 function render() {
+  drawHints();
   const q = $('name').value.trim(), t = now().slice(0, 10);
   if (calY == null) { calY = +t.slice(0, 4); calM = +t.slice(5, 7); selDay = t; }
   if (q) {
@@ -244,7 +263,7 @@ $('list').onclick = e => {
   const im = e.target.closest('img[data-p]'); if (im) { $('zoomImg').src = im.src; $('zoom').classList.add('on'); return; }
   const ed = e.target.closest('[data-edit]'); if (ed) { const r = recs.find(x => x.id === ed.dataset.edit); editId = r.id;
     $('name').value = r.name; $('perm').value = r.perm || ''; $('cut').value = r.cut || ''; $('oops').value = r.oops || ''; shots = [...(r.photos || [])]; drawShots();
-    $('save').textContent = '고친 내용 저장'; $('cancelEdit').hidden = false; $('editNote').hidden = false; $('editNote').textContent = `✏️ ${r.name} 님 ${fmt(r.at)} 기록을 고치는 중이에요`;
+    $('nameHints').innerHTML = ''; $('save').textContent = '고친 내용 저장'; $('cancelEdit').hidden = false; $('editNote').hidden = false; $('editNote').textContent = `✏️ ${r.name} 님 ${fmt(r.at)} 기록을 고치는 중이에요`;
     window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const d = e.target.closest('[data-del]'); if (d) { delId = d.dataset.del; $('ask').classList.add('on'); }
 };
