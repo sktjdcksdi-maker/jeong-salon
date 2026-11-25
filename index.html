@@ -96,6 +96,8 @@ details.rec[open]{border-color:var(--acc)}
 .hints button.same{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
 .hints button small{font-size:16px;font-weight:600;opacity:.8;margin-left:4px}
 .hints .newGuest{font-size:18px;font-weight:800;color:var(--acc);background:var(--tint);border-radius:12px;padding:8px 14px}
+.upBtn{min-height:56px;font-size:19px;margin-bottom:4px;background:var(--tint);border-color:var(--acc)}
+@media(min-width:1000px){.upBtn{display:none}}
 [hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -196,7 +198,8 @@ function drawHints() {
   box.innerHTML = `<div class="hTitle">👇 이미 적어 둔 손님이에요. 누르면 이름이 들어가요</div>`
     + names.map(n => `<button type="button" class="${n === q ? 'same' : ''}" data-pick="${esc(n)}">${n === q ? '✓ ' : ''}${esc(n)}<small>${cnt[n]}번 방문</small></button>`).join('');
 }
-$('nameHints').onclick = e => { const b = e.target.closest('[data-pick]'); if (b) { $('name').value = b.dataset.pick; render(); } };
+$('nameHints').onclick = e => { const b = e.target.closest('[data-pick]'); if (b) { $('name').value = b.dataset.pick; render(); $('listTitle').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+$('list').addEventListener('click', e => { if (e.target.closest('[data-up]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => $('perm').focus({ preventScroll: true }), 500); } });
 function render() {
   drawHints();
   const q = $('name').value.trim(), t = now().slice(0, 10);
@@ -204,7 +207,7 @@ function render() {
   if (q) {
     const list = recs.filter(r => r.name.includes(q)).sort((a, b) => b.at.localeCompare(a.at));
     $('cal').hidden = true; $('listTitle').textContent = `"${q}" 손님 지난 기록 ${list.length}개`;
-    $('list').innerHTML = list.length ? list.map(r => `<div class="dayHead">${fmt(r.at)}</div>` + recHtml(r, true)).join('') : `<div class="empty">"${esc(q)}" 손님 기록이 아직 없어요.</div>`;
+    $('list').innerHTML = `<button type="button" class="upBtn" data-up="1">✏️ 오늘 기록 새로 적기 (위로 가기)</button>` + (list.length ? list.map(r => `<div class="dayHead">${fmt(r.at)}</div>` + recHtml(r, true)).join('') : `<div class="empty">"${esc(q)}" 손님 기록이 아직 없어요.</div>`);
     fill($('list')); return;
   }
   $('cal').hidden = false; $('listTitle').textContent = '지난 기록';
